@@ -1,3 +1,10 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["alignment*"]
+
 [project]
 name = "simpo"
 version = "0.3.0.dev0"
