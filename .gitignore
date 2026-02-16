@@ -162,3 +162,5 @@ cython_debug/
 # Temp folders
 data/
 wandb/
+.DS_Store
+eval/.DS_Store
