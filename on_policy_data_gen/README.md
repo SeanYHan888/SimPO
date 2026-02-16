@@ -10,8 +10,8 @@ You will need to install the [`vllm`](https://github.com/vllm-project/vllm) pack
 
 1. Generate multiple responses using the language model:
 
-```
-python decode.py --data_dir $DATASET_DIR --seed $SEED
+```shell
+uv run python decode.py --data_dir $DATASET_DIR --seed $SEED
 ```
 This will generate one response per prompt under the specified seed. You need to provide a dataset containing prompts (by default, we use `HuggingFaceH4/ultrafeedback_binarized`). You can also set decoding hyperparameters by passing in corresponding arguments (by default, we use a temperature of `0.8` for sampling).
 
@@ -19,17 +19,16 @@ Note that you will need to run the above command under **multiple different** se
 
 2. Post-process the generations
 
-```
-python post_process.py
+```shell
+uv run python post_process.py
 ```
 
 This will combine the generated responses under each seed and filter out samples with identical responses across all seeds.
 
 3. Annotate the preference labels with a reward model
 
-```
-python reward_model_annotate.py --reward_model $MODEL
+```shell
+uv run python reward_model_annotate.py --reward_model $MODEL
 ```
 
 This will score the generations using a reward model (by default, we use `RLHFlow/ArmoRM-Llama3-8B-v0.1`) and binarize the dataset by taking the highest-scoring response as the winning response and the lowest-scoring one as the losing.
-

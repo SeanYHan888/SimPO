@@ -155,29 +155,35 @@ Please refer to the [generate.py](generate.py) script for detailed instructions 
 
 ## Install Requirements
 
-Our codebase is built upon the [alignment-handbook repo](https://github.com/huggingface/alignment-handbook). The following steps will guide you through the installation process.
+We provide a `uv`-managed setup via `pyproject.toml` with grouped dependencies for:
+- default/dev usage
+- evaluation (`eval`)
+- Linux GPU training (`train`, including DeepSpeed + FlashAttention2)
 
-First, create a Python virtual environment using e.g. Conda:
+Install `uv` first:
 ```shell
-conda create -n handbook python=3.10 && conda activate handbook
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Next, install PyTorch `v2.2.2`. Since this is hardware-dependent, we
-direct you to the [PyTorch Installation Page](https://pytorch.org/get-started/locally/).
-
-You can then install the remaining package dependencies of [alignment-handbook](https://github.com/huggingface/alignment-handbook) as follows:
-
+Sync the default environment (Python 3.10 is pinned via `.python-version`):
 ```shell
-git clone https://github.com/huggingface/alignment-handbook.git
-cd ./alignment-handbook/
-python -m pip install .
+uv sync
 ```
 
-You will also need Flash Attention 2 installed, which can be done by running:
-
+For Linux GPU training, install the training stack:
 ```shell
-python -m pip install flash-attn --no-build-isolation
+uv sync --group train
 ```
+
+For benchmark tooling (AlpacaEval / MT-Bench tooling deps):
+```shell
+uv sync --group eval
+```
+
+Notes:
+- `environment.yml` remains in the repo as a legacy Conda environment snapshot.
+- Training dependencies in `train` are Linux-only by marker (`sys_platform == "linux"`).
+- Llama-3 checkpoints may require Hugging Face gated access (`huggingface-cli login`).
 
 ## Training Scripts
 
@@ -185,23 +191,23 @@ We provide four training config files for the four training setups reported in o
 
 * Mistral-Base:
 ```shell
-ACCELERATE_LOG_LEVEL=info accelerate launch --config_file accelerate_configs/deepspeed_zero3.yaml scripts/run_simpo.py training_configs/mistral-7b-base-simpo.yaml
+ACCELERATE_LOG_LEVEL=info uv run accelerate launch --config_file accelerate_configs/deepspeed_zero3.yaml scripts/run_simpo.py training_configs/mistral-7b-base-simpo.yaml
 ```
 * Mistral-Instruct:
 ```shell
-ACCELERATE_LOG_LEVEL=info accelerate launch --config_file accelerate_configs/deepspeed_zero3.yaml scripts/run_simpo.py training_configs/mistral-7b-instruct-simpo.yaml
+ACCELERATE_LOG_LEVEL=info uv run accelerate launch --config_file accelerate_configs/deepspeed_zero3.yaml scripts/run_simpo.py training_configs/mistral-7b-instruct-simpo.yaml
 ```
 * Llama3-Base:
 ```shell
-ACCELERATE_LOG_LEVEL=info accelerate launch --config_file accelerate_configs/deepspeed_zero3.yaml scripts/run_simpo.py training_configs/llama-3-8b-base-simpo.yaml
+ACCELERATE_LOG_LEVEL=info uv run accelerate launch --config_file accelerate_configs/deepspeed_zero3.yaml scripts/run_simpo.py training_configs/llama-3-8b-base-simpo.yaml
 ```
 * Llama3-Instruct:
 ```shell
-ACCELERATE_LOG_LEVEL=info accelerate launch --config_file accelerate_configs/deepspeed_zero3.yaml scripts/run_simpo.py training_configs/llama-3-8b-instruct-simpo.yaml
+ACCELERATE_LOG_LEVEL=info uv run accelerate launch --config_file accelerate_configs/deepspeed_zero3.yaml scripts/run_simpo.py training_configs/llama-3-8b-instruct-simpo.yaml
 ```
 * Llama3-Instruct v0.2:
 ```shell
-ACCELERATE_LOG_LEVEL=info accelerate launch --config_file accelerate_configs/deepspeed_zero3.yaml scripts/run_simpo.py training_configs/llama-3-8b-instruct-simpo-v2.yaml
+ACCELERATE_LOG_LEVEL=info uv run accelerate launch --config_file accelerate_configs/deepspeed_zero3.yaml scripts/run_simpo.py training_configs/llama-3-8b-instruct-simpo-v2.yaml
 ```
 
 ## Evaluation

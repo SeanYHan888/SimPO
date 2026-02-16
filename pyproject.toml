@@ -1,0 +1,53 @@
+[project]
+name = "simpo"
+version = "0.1.0"
+description = "Simple Preference Optimization (SimPO) training and evaluation scripts."
+requires-python = ">=3.10,<3.11"
+dependencies = [
+  "accelerate==0.29.2",
+  "datasets==2.18.0",
+  "huggingface-hub==0.22.2",
+  "numpy==1.26.4",
+  "peft==0.7.1",
+  "pyyaml==6.0.1",
+  "safetensors==0.4.2",
+  "sentencepiece==0.2.0",
+  "torch==2.2.2",
+  "torchaudio==2.2.2",
+  "torchvision==0.17.2",
+  "transformers==4.44.2",
+  "trl==0.9.6",
+  "wandb==0.13.11",
+]
+
+[dependency-groups]
+dev = [
+  "ipykernel==6.29.3",
+  "ipython==8.22.2",
+  "jupyter-core==5.7.2",
+  "pytest==8.2.1",
+]
+eval = [
+  "alpaca-eval==0.6.2",
+  "fschat==0.2.34",
+]
+train = [
+  "bitsandbytes==0.41.2.post2; sys_platform == 'linux'",
+  "deepspeed==0.12.2; sys_platform == 'linux'",
+  "flash-attn==2.5.7; sys_platform == 'linux'",
+  "ninja==1.11.1.1; sys_platform == 'linux'",
+]
+
+[tool.uv]
+package = false
+default-groups = ["dev"]
+
+[[tool.uv.index]]
+name = "pytorch-cu121"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu121", marker = "sys_platform == 'linux'" }]
+torchaudio = [{ index = "pytorch-cu121", marker = "sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cu121", marker = "sys_platform == 'linux'" }]
