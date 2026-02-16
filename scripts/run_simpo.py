@@ -16,6 +16,46 @@
 import logging
 import random
 import sys
+from importlib.metadata import PackageNotFoundError, version as get_installed_version
+
+
+def _assert_compatible_runtime_versions() -> None:
+    expected_versions = {
+        "accelerate": "0.29.2",
+        "datasets": "2.18.0",
+        "huggingface-hub": "0.24.0",
+        "peft": "0.7.1",
+        "transformers": "4.44.2",
+        "trl": "0.9.6",
+    }
+    mismatches = []
+    missing = []
+
+    for package, expected_version in expected_versions.items():
+        try:
+            installed_version = get_installed_version(package)
+        except PackageNotFoundError:
+            missing.append(package)
+            continue
+
+        if installed_version != expected_version:
+            mismatches.append(f"{package}=={installed_version} (expected {expected_version})")
+
+    if missing or mismatches:
+        details = []
+        if missing:
+            details.append("Missing packages: " + ", ".join(sorted(missing)))
+        if mismatches:
+            details.append("Version mismatches: " + "; ".join(sorted(mismatches)))
+        raise SystemExit(
+            "Incompatible dependency set for SimPO training.\n"
+            + "\n".join(details)
+            + "\nExpected the pinned training stack from pyproject.toml. "
+            "Run `uv sync --frozen` in the project root to restore compatibility."
+        )
+
+
+_assert_compatible_runtime_versions()
 
 import torch
 import transformers
