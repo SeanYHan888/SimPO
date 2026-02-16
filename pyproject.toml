@@ -12,18 +12,18 @@ description = "SimPO: Simple Preference Optimization"
 requires-python = ">=3.10"
 dependencies = [
     # Core training stack
-    "accelerate>=0.29.2",
-    "datasets>=2.18.0",
-    "huggingface-hub>=0.22.2",
+    "accelerate>=0.29.2,<1.0",
+    "datasets>=2.18.0,<3.0",
+    "huggingface-hub>=0.22.2,<0.30",
     "numpy>=1.26.4",
     "packaging>=24.0",
-    "peft>=0.7.1",
+    "peft>=0.7.1,<1.0",
     "safetensors>=0.4.2",
     "sentencepiece>=0.2.0",
-    "tokenizers>=0.15.2",
+    "tokenizers>=0.15.2,<1.0",
     "torch>=2.4.0",
-    "transformers>=4.44.2",
-    "trl>=0.9.6",
+    "transformers>=4.44.2,<5.0",
+    "trl>=0.9.6,<1.0",
     # Utilities
     "jinja2>=3.1.3",
     "pyyaml>=6.0.1",
