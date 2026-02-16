@@ -28,7 +28,7 @@ def _assert_compatible_runtime_versions() -> None:
         "transformers": "4.44.2",
         "trl": "0.9.6",
     }
-    required_packages = ("setuptools",)
+    required_packages = ("rich", "setuptools")
     mismatches = []
     missing = []
 
