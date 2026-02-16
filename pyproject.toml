@@ -46,13 +46,16 @@ wandb = ["wandb>=0.13.11"]
 [tool.uv.extra-build-dependencies]
 flash-attn = ["torch"]
 
-# vllm and flash-attn require CUDA to even resolve/build,
-# so they live in a dev group that is not installed by default.
+# flash-attn is needed for training with `attn_implementation=flash_attention_2`.
 # Install on the cluster with: uv sync --group cuda
-# For training stability, do not install the `cuda` group unless you need those tools.
 [dependency-groups]
 cuda = [
     "flash-attn==2.5.7; sys_platform == 'linux'",
+]
+
+# vllm has a different compatibility matrix from the pinned training stack
+# (torch==2.2.2 + transformers==4.44.2), so keep it in a separate optional group.
+vllm = [
     "vllm>=0.4.0; sys_platform == 'linux'",
 ]
 
