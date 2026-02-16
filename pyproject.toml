@@ -22,7 +22,8 @@ dependencies = [
     "sentencepiece>=0.2.0",
     "setuptools>=68.2.2",
     "tokenizers>=0.15.2,<1.0",
-    "torch>=2.4.0",
+    "torch==2.2.2; sys_platform == 'linux'",
+    "torch>=2.4.0; sys_platform == 'darwin'",
     "transformers==4.44.2",
     "trl==0.9.6",
     # Utilities
@@ -32,7 +33,7 @@ dependencies = [
     "tqdm>=4.66.2",
     # Linux-only (CUDA) packages -- skipped on macOS
     "bitsandbytes>=0.41.2; sys_platform == 'linux'",
-    "deepspeed>=0.12.2; sys_platform == 'linux'",
+    "deepspeed==0.12.2; sys_platform == 'linux'",
 ]
 
 [project.optional-dependencies]
@@ -51,7 +52,7 @@ flash-attn = ["torch"]
 # For training stability, do not install the `cuda` group unless you need those tools.
 [dependency-groups]
 cuda = [
-    "flash-attn>=2.5.7; sys_platform == 'linux'",
+    "flash-attn==2.5.7; sys_platform == 'linux'",
     "vllm>=0.4.0; sys_platform == 'linux'",
 ]
 
