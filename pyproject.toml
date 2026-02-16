@@ -9,7 +9,7 @@ include = ["alignment*"]
 name = "simpo"
 version = "0.3.0.dev0"
 description = "SimPO: Simple Preference Optimization"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.12"
 dependencies = [
     # Core training stack
     "accelerate==0.29.2",
@@ -53,11 +53,9 @@ cuda = [
     "flash-attn==2.5.7; sys_platform == 'linux'",
 ]
 
-# vllm has a different compatibility matrix from the pinned training stack
-# (torch==2.2.2 + transformers==4.44.2), so keep it in a separate optional group.
-vllm = [
-    "vllm>=0.4.0; sys_platform == 'linux'",
-]
+# NOTE: Do not add vllm to this project dependency graph.
+# vllm's torch/transformers requirements conflict with the pinned training stack
+# used by SimPO (torch==2.2.2 + transformers==4.44.2), which breaks `uv lock`.
 
 # Platform-conditional torch: CUDA on Linux, CPU on macOS
 [tool.uv.sources]
