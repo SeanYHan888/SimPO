@@ -32,6 +32,10 @@ wandb = ["wandb>=0.13.11"]
 # --- uv-specific configuration ---
 [tool.uv]
 
+# flash-attn needs torch at build time but doesn't declare it
+[tool.uv.extra-build-dependencies]
+flash-attn = ["torch"]
+
 # vllm and flash-attn require CUDA to even resolve/build,
 # so they live in a dev group that is not installed by default.
 # Install on the cluster with: uv sync --group cuda
