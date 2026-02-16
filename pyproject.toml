@@ -20,6 +20,7 @@ dependencies = [
     "peft==0.7.1",
     "safetensors>=0.4.2",
     "sentencepiece>=0.2.0",
+    "setuptools>=68.2.2",
     "tokenizers>=0.15.2,<1.0",
     "torch>=2.4.0",
     "transformers==4.44.2",

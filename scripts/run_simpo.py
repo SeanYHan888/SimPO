@@ -28,6 +28,7 @@ def _assert_compatible_runtime_versions() -> None:
         "transformers": "4.44.2",
         "trl": "0.9.6",
     }
+    required_packages = ("setuptools",)
     mismatches = []
     missing = []
 
@@ -40,6 +41,12 @@ def _assert_compatible_runtime_versions() -> None:
 
         if installed_version != expected_version:
             mismatches.append(f"{package}=={installed_version} (expected {expected_version})")
+
+    for package in required_packages:
+        try:
+            get_installed_version(package)
+        except PackageNotFoundError:
+            missing.append(package)
 
     if missing or mismatches:
         details = []
