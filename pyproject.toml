@@ -21,7 +21,7 @@ dependencies = [
     "safetensors>=0.4.2",
     "sentencepiece>=0.2.0",
     "tokenizers>=0.15.2",
-    "torch>=2.2.2",
+    "torch>=2.4.0",
     "transformers>=4.44.2",
     "trl>=0.9.6",
     # Utilities
