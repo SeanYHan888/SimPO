@@ -5,6 +5,7 @@ import warnings
 from collections import defaultdict
 from contextlib import nullcontext
 from functools import wraps
+from importlib.metadata import PackageNotFoundError, version
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
@@ -15,32 +16,189 @@ from accelerate import PartialState
 from datasets import Dataset
 from torch.utils.data import DataLoader
 from transformers import AutoModelForCausalLM, DataCollator, PreTrainedModel, PreTrainedTokenizerBase, Trainer
-from trl.trainer import CPOTrainer
 from transformers.trainer_callback import TrainerCallback
 from transformers.trainer_utils import EvalLoopOutput
-from transformers.utils import is_torch_fx_proxy
-
-from trl.import_utils import is_peft_available, is_wandb_available
 from simpo_config import SimPOConfig
 
 from dataclasses import dataclass
-from typing import Dict, Literal, Optional
 
-from transformers import TrainingArguments
+try:
+    from trl.import_utils import is_peft_available
+except ImportError:
+    try:
+        from transformers.utils import is_peft_available
+    except ImportError:
+        def is_peft_available() -> bool:
+            return False
 
-from trl.trainer.utils import (
-    DPODataCollatorWithPadding,
-    disable_dropout_in_model,
-    pad_to_length,
-    peft_module_casting_to_bf16,
-    trl_sanitze_kwargs_for_tagging,
-)
+try:
+    from trl.import_utils import is_wandb_available
+except ImportError:
+    try:
+        from transformers.integrations import is_wandb_available
+    except ImportError:
+        try:
+            from transformers.utils import is_wandb_available
+        except ImportError:
+            def is_wandb_available() -> bool:
+                return False
+
+try:
+    from trl.trainer.utils import (
+        DPODataCollatorWithPadding,
+        disable_dropout_in_model,
+        pad_to_length,
+        peft_module_casting_to_bf16,
+    )
+    _HAS_TRL_DPO_COLLATOR = True
+except ImportError:
+    DPODataCollatorWithPadding = None
+    _HAS_TRL_DPO_COLLATOR = False
+
+    def disable_dropout_in_model(model: nn.Module) -> None:
+        for module in model.modules():
+            if isinstance(module, nn.Dropout):
+                module.p = 0.0
+
+    def pad_to_length(
+        tensor: torch.Tensor,
+        length: int,
+        pad_value: int = 0,
+        dim: int = -1,
+    ) -> torch.Tensor:
+        if dim < 0:
+            dim = tensor.ndim + dim
+        if tensor.shape[dim] >= length:
+            return tensor
+        pad_sizes = [0] * (2 * tensor.ndim)
+        pad_sizes[2 * (tensor.ndim - dim - 1) + 1] = length - tensor.shape[dim]
+        return F.pad(tensor, pad_sizes, value=pad_value)
+
+    def peft_module_casting_to_bf16(model: nn.Module) -> None:
+        return None
+
+try:
+    from trl.trainer.utils import trl_sanitze_kwargs_for_tagging
+except ImportError:
+    try:
+        from trl.trainer.utils import trl_sanitize_kwargs_for_tagging as trl_sanitze_kwargs_for_tagging
+    except ImportError:
+        def trl_sanitze_kwargs_for_tagging(model: nn.Module, tag_names: List[str], kwargs: Dict[str, Any]) -> Dict[str, Any]:
+            return kwargs
 
 if is_peft_available():
     from peft import PeftModel, get_peft_model, prepare_model_for_kbit_training
 
 if is_wandb_available():
     import wandb
+
+
+@dataclass
+class FallbackDPODataCollatorWithPadding:
+    """Fallback collator for TRL versions without DPODataCollatorWithPadding."""
+
+    pad_token_id: int
+    label_pad_token_id: int = -100
+    is_encoder_decoder: bool = False
+
+    def _pad(self, sequences: List[List[int]], pad_value: int, left: bool = False) -> torch.Tensor:
+        max_len = max(len(seq) for seq in sequences)
+        padded = []
+        for seq in sequences:
+            diff = max_len - len(seq)
+            if left:
+                padded.append(([pad_value] * diff) + seq)
+            else:
+                padded.append(seq + ([pad_value] * diff))
+        return torch.tensor(padded, dtype=torch.long)
+
+    def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, Any]:
+        batch = {}
+        for key in features[0].keys():
+            values = [feature[key] for feature in features]
+            first = values[0]
+
+            if isinstance(first, str):
+                batch[key] = values
+                continue
+
+            if isinstance(first, torch.Tensor):
+                values = [value.tolist() for value in values]
+                first = values[0]
+
+            if isinstance(first, list):
+                if "labels" in key:
+                    pad_value = self.label_pad_token_id
+                elif key.endswith("attention_mask"):
+                    pad_value = 0
+                elif key.endswith("input_ids"):
+                    pad_value = self.pad_token_id
+                else:
+                    pad_value = 0
+
+                left_pad = key.startswith("prompt_")
+                batch[key] = self._pad(values, pad_value=pad_value, left=left_pad)
+                continue
+
+            if isinstance(first, (bool, int)):
+                batch[key] = torch.tensor(values, dtype=torch.long)
+            elif isinstance(first, float):
+                batch[key] = torch.tensor(values, dtype=torch.float)
+            else:
+                batch[key] = values
+
+        return batch
+
+
+def _get_pkg_version(pkg_name: str) -> str:
+    try:
+        return version(pkg_name)
+    except PackageNotFoundError:
+        return "not-installed"
+
+
+def check_simpo_dependency_compatibility() -> None:
+    """Fail fast with actionable errors when upstream package APIs changed."""
+    errors = []
+    run_simpo_checks = []
+    trainer_init_params = inspect.signature(Trainer.__init__).parameters
+    if "tokenizer" not in trainer_init_params and "processing_class" not in trainer_init_params:
+        errors.append(
+            f"transformers Trainer.__init__ API changed (found params: {list(trainer_init_params)[:10]}...). "
+            "Expected either `tokenizer` or `processing_class`."
+        )
+    try:
+        from transformers import utils as transformers_utils
+        required_logging_attrs = [
+            "set_verbosity",
+            "enable_default_handler",
+            "enable_explicit_format",
+        ]
+        for attr in required_logging_attrs:
+            if not hasattr(transformers_utils.logging, attr):
+                run_simpo_checks.append(
+                    f"transformers.utils.logging.{attr} is missing (used by run_simpo.py)."
+                )
+    except Exception as exc:
+        run_simpo_checks.append(
+            f"Could not validate transformers logging APIs for run_simpo.py: {type(exc).__name__}: {exc}"
+        )
+
+    errors.extend(run_simpo_checks)
+
+    if errors:
+        raise RuntimeError(
+            "Incompatible dependency APIs detected for SimPO training.\n"
+            f"Versions: transformers={_get_pkg_version('transformers')}, trl={_get_pkg_version('trl')}, "
+            f"accelerate={_get_pkg_version('accelerate')}, peft={_get_pkg_version('peft')}.\n"
+            + "\n".join(f"- {err}" for err in errors)
+        )
+
+    if not _HAS_TRL_DPO_COLLATOR:
+        warnings.warn(
+            "TRL DPODataCollatorWithPadding was not found. Falling back to local preference data collator.",
+            UserWarning,
+        )
 
 
 class SimPOTrainer(Trainer):
@@ -219,11 +377,18 @@ class SimPOTrainer(Trainer):
             max_target_length = args.max_target_length
 
         if data_collator is None:
-            data_collator = DPODataCollatorWithPadding(
-                pad_token_id=tokenizer.pad_token_id,
-                label_pad_token_id=args.label_pad_token_id,
-                is_encoder_decoder=self.is_encoder_decoder,
-            )
+            if _HAS_TRL_DPO_COLLATOR:
+                data_collator = DPODataCollatorWithPadding(
+                    pad_token_id=tokenizer.pad_token_id,
+                    label_pad_token_id=args.label_pad_token_id,
+                    is_encoder_decoder=self.is_encoder_decoder,
+                )
+            else:
+                data_collator = FallbackDPODataCollatorWithPadding(
+                    pad_token_id=tokenizer.pad_token_id,
+                    label_pad_token_id=args.label_pad_token_id,
+                    is_encoder_decoder=self.is_encoder_decoder,
+                )
 
             if args.remove_unused_columns:
                 args.remove_unused_columns = False
@@ -271,19 +436,30 @@ class SimPOTrainer(Trainer):
             if eval_dataset is not None:
                 eval_dataset = eval_dataset.map(self.tokenize_row, num_proc=args.dataset_num_proc)
 
-        super().__init__(
+        trainer_init_kwargs = dict(
             model=model,
             args=args,
             data_collator=data_collator,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
-            tokenizer=tokenizer,
             model_init=model_init,
             compute_metrics=compute_metrics,
             callbacks=callbacks,
             optimizers=optimizers,
             preprocess_logits_for_metrics=preprocess_logits_for_metrics,
         )
+        trainer_init_params = inspect.signature(Trainer.__init__).parameters
+        if "tokenizer" in trainer_init_params:
+            trainer_init_kwargs["tokenizer"] = tokenizer
+        elif "processing_class" in trainer_init_params:
+            trainer_init_kwargs["processing_class"] = tokenizer
+        else:
+            raise RuntimeError(
+                "Unsupported transformers Trainer.__init__ signature. "
+                "Expected either `tokenizer` or `processing_class`."
+            )
+
+        super().__init__(**trainer_init_kwargs)
 
         # Add tags for models that have been loaded with the correct transformers version
         if hasattr(self.model, "add_model_tags"):
