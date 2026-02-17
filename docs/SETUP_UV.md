@@ -44,9 +44,9 @@ uv run accelerate launch \
 
 Swap the config file in `training_configs/` for your target model setup.
 
-## 5) Tiny Smoke Run
+## 5) Tiny Smoke Run (Validated)
 
-Use a short single-process run to validate dependencies and script wiring before full training:
+Use a short single-process run with LoRA to validate dependencies and script wiring before full training:
 
 ```bash
 uv run accelerate launch --num_processes 1 \
@@ -57,11 +57,40 @@ uv run accelerate launch --num_processes 1 \
   --gradient_accumulation_steps=1 \
   --logging_steps=1 \
   --save_steps=5 \
+  --attn_implementation=sdpa \
+  --use_peft=true \
+  --lora_r=8 \
+  --lora_alpha=16 \
+  --lora_target_modules=q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj \
+  --max_length=512 \
+  --max_prompt_length=256 \
   --output_dir=outputs/smoke-llama-3-8b-instruct-simpo-v2 \
   --run_name=smoke-llama-3-8b-instruct-simpo-v2
 ```
 
-## 6) Re-lock Dependencies (when changing versions)
+## 6) Resume Check (Recommended)
+
+Use this to verify checkpoint resume works before expensive multi-GPU runs:
+
+```bash
+uv run accelerate launch --num_processes 1 \
+  scripts/run_simpo.py training_configs/llama-3-8b-instruct-simpo-v2.yaml \
+  --max_steps=22 \
+  --resume_from_checkpoint=outputs/smoke-llama-3-8b-instruct-simpo-v2/checkpoint-5 \
+  --attn_implementation=sdpa \
+  --use_peft=true \
+  --lora_r=8 \
+  --lora_alpha=16 \
+  --lora_target_modules=q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj \
+  --max_length=512 \
+  --max_prompt_length=256 \
+  --output_dir=outputs/smoke-llama-3-8b-instruct-simpo-v2 \
+  --run_name=smoke-llama-3-8b-instruct-simpo-v2-resume
+```
+
+Important: keep LoRA/model-shape args identical between initial run and resume.
+
+## 7) Re-lock Dependencies (when changing versions)
 
 ```bash
 uv lock
