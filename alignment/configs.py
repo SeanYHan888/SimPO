@@ -17,7 +17,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, NewType, Optional, Tuple
+from typing import Any, Dict, List, NewType, Optional, Tuple, Union, get_args, get_origin
 
 import yaml
 from transformers import MODEL_FOR_CAUSAL_LM_MAPPING, HfArgumentParser
@@ -89,21 +89,7 @@ class H4ArgumentParser(HfArgumentParser):
 
                 if arg in keys:
                     base_type = data_yaml.__dataclass_fields__[arg].type
-                    inputs[arg] = val
-
-                    # cast type for ints, floats (default to strings)
-                    if base_type in [int, float]:
-                        inputs[arg] = base_type(val)
-
-                    if base_type == List[str]:
-                        inputs[arg] = [str(v) for v in val.split(",")]
-
-                    # bool of a non-empty string is True, so we manually check for bools
-                    if base_type is bool:
-                        if val in ["true", "True"]:
-                            inputs[arg] = True
-                        else:
-                            inputs[arg] = False
+                    inputs[arg] = self._cast_cli_value(base_type, val)
 
                     # add to used-args so we can check if double add
                     if arg not in used_args:
@@ -115,6 +101,31 @@ class H4ArgumentParser(HfArgumentParser):
             outputs.append(obj)
 
         return outputs
+
+    @staticmethod
+    def _cast_cli_value(base_type, val: str):
+        target_type = base_type
+        origin = get_origin(target_type)
+        args = get_args(target_type)
+
+        # Unwrap Optional[T] / Union[T, None]
+        if origin is Union and type(None) in args:
+            non_none_types = [arg for arg in args if arg is not type(None)]
+            if len(non_none_types) == 1:
+                target_type = non_none_types[0]
+                origin = get_origin(target_type)
+                args = get_args(target_type)
+
+        if target_type in [int, float]:
+            return target_type(val)
+
+        if target_type is bool:
+            return val in ["true", "True", "1", "yes", "Yes", "y", "Y"]
+
+        if origin is list and len(args) == 1 and args[0] is str:
+            return [str(v) for v in val.split(",")]
+
+        return val
 
     def parse(self) -> DataClassType | Tuple[DataClassType]:
         if len(sys.argv) == 2 and sys.argv[1].endswith(".yaml"):

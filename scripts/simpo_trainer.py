@@ -1,5 +1,6 @@
 
 import inspect
+import importlib
 import random
 import warnings
 from collections import defaultdict
@@ -43,23 +44,35 @@ except ImportError:
             def is_wandb_available() -> bool:
                 return False
 
-try:
-    from trl.trainer.utils import (
-        DPODataCollatorWithPadding,
-        disable_dropout_in_model,
-        pad_to_length,
-        peft_module_casting_to_bf16,
-    )
-    _HAS_TRL_DPO_COLLATOR = True
-except ImportError:
-    DPODataCollatorWithPadding = None
-    _HAS_TRL_DPO_COLLATOR = False
+def _import_trl_attr(module_names: List[str], attr_name: str):
+    for module_name in module_names:
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            continue
+        if hasattr(module, attr_name):
+            return getattr(module, attr_name)
+    return None
 
+
+DPODataCollatorWithPadding = _import_trl_attr(
+    ["trl.trainer.utils", "trl.trainer.dpo_trainer"],
+    "DPODataCollatorWithPadding",
+)
+_HAS_TRL_DPO_COLLATOR = DPODataCollatorWithPadding is not None
+
+disable_dropout_in_model = _import_trl_attr(
+    ["trl.trainer.utils", "trl.trainer.dpo_trainer"],
+    "disable_dropout_in_model",
+)
+if disable_dropout_in_model is None:
     def disable_dropout_in_model(model: nn.Module) -> None:
         for module in model.modules():
             if isinstance(module, nn.Dropout):
                 module.p = 0.0
 
+pad_to_length = _import_trl_attr(["trl.trainer.utils"], "pad_to_length")
+if pad_to_length is None:
     def pad_to_length(
         tensor: torch.Tensor,
         length: int,
@@ -74,6 +87,11 @@ except ImportError:
         pad_sizes[2 * (tensor.ndim - dim - 1) + 1] = length - tensor.shape[dim]
         return F.pad(tensor, pad_sizes, value=pad_value)
 
+peft_module_casting_to_bf16 = _import_trl_attr(
+    ["trl.trainer.utils", "trl.trainer.dpo_trainer"],
+    "peft_module_casting_to_bf16",
+)
+if peft_module_casting_to_bf16 is None:
     def peft_module_casting_to_bf16(model: nn.Module) -> None:
         return None
 
