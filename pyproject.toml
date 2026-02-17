@@ -9,7 +9,7 @@ include = ["alignment*"]
 name = "simpo"
 version = "0.3.0.dev0"
 description = "SimPO: Simple Preference Optimization"
-requires-python = ">=3.10,<3.12"
+requires-python = ">=3.10,<3.11"
 dependencies = [
     # Core training stack
     "accelerate==0.29.2",
@@ -37,14 +37,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-wandb = ["wandb>=0.13.11"]
+wandb = ["wandb==0.13.11"]
 
 # --- uv-specific configuration ---
 [tool.uv]
 
 # flash-attn needs torch at build time but doesn't declare it
 [tool.uv.extra-build-dependencies]
-flash-attn = ["torch"]
+flash-attn = ["torch==2.2.2; sys_platform == 'linux'"]
 
 # flash-attn is needed for training with `attn_implementation=flash_attention_2`.
 # Install on the cluster with: uv sync --group cuda

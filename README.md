@@ -157,6 +157,17 @@ Please refer to the [generate.py](generate.py) script for detailed instructions 
 
 Our codebase is built upon the [alignment-handbook repo](https://github.com/huggingface/alignment-handbook). The following steps will guide you through the installation process.
 
+If you use `uv` for environment management (recommended for this repo), use Python 3.10 and run:
+```shell
+uv lock
+uv sync --frozen --group cuda --extra wandb
+```
+
+For Linux images that may compile `flash-attn` from source, make sure system build deps are installed first (Ubuntu/Debian example):
+```shell
+apt-get update && apt-get install -y python3.10-dev ninja-build build-essential
+```
+
 First, create a Python virtual environment using e.g. Conda:
 ```shell
 conda create -n handbook python=3.10 && conda activate handbook
