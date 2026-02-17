@@ -16,8 +16,10 @@ import dataclasses
 import os
 import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, NewType, Optional, Tuple
 
+import yaml
 from transformers import MODEL_FOR_CAUSAL_LM_MAPPING, HfArgumentParser
 
 import trl
@@ -31,6 +33,32 @@ DataClassType = NewType("DataClassType", Any)
 
 
 class H4ArgumentParser(HfArgumentParser):
+    @staticmethod
+    def _legacy_key_aliases() -> Dict[str, str]:
+        # Keep older training YAMLs compatible with newer transformers args.
+        return {
+            "evaluation_strategy": "eval_strategy",
+        }
+
+    def _known_parser_keys(self) -> set[str]:
+        keys = set()
+        for data_class in self.dataclass_types:
+            keys.update({f.name for f in dataclasses.fields(data_class) if f.init})
+        return keys
+
+    def _normalize_legacy_yaml_keys(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        keys = self._known_parser_keys()
+        aliases = self._legacy_key_aliases()
+        for old_key, new_key in aliases.items():
+            if old_key in data and old_key not in keys and new_key in keys and new_key not in data:
+                data[new_key] = data.pop(old_key)
+        return data
+
+    def parse_yaml_file_compat(self, yaml_arg: str) -> List[dataclass]:
+        yaml_data = yaml.safe_load(Path(yaml_arg).read_text())
+        yaml_data = self._normalize_legacy_yaml_keys(yaml_data)
+        return self.parse_dict(yaml_data, allow_extra_keys=False)
+
     def parse_yaml_and_args(self, yaml_arg: str, other_args: Optional[List[str]] = None) -> List[dataclass]:
         """
         Parse a YAML file and overwrite the default/loaded values with the values provided to the command line.
@@ -44,7 +72,7 @@ class H4ArgumentParser(HfArgumentParser):
         Returns:
             [`List[dataclass]`]: a list of dataclasses with the values from the YAML file and the command line
         """
-        arg_list = self.parse_yaml_file(os.path.abspath(yaml_arg))
+        arg_list = self.parse_yaml_file_compat(os.path.abspath(yaml_arg))
 
         outputs = []
         # strip other args list into dict of key-value pairs
@@ -92,7 +120,7 @@ class H4ArgumentParser(HfArgumentParser):
         if len(sys.argv) == 2 and sys.argv[1].endswith(".yaml"):
             # If we pass only one argument to the script and it's the path to a YAML file,
             # let's parse it to get our arguments.
-            output = self.parse_yaml_file(os.path.abspath(sys.argv[1]))
+            output = self.parse_yaml_file_compat(os.path.abspath(sys.argv[1]))
         # parse command line args and yaml file
         elif len(sys.argv) > 2 and sys.argv[1].endswith(".yaml"):
             output = self.parse_yaml_and_args(os.path.abspath(sys.argv[1]), sys.argv[2:])
