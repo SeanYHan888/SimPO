@@ -59,6 +59,14 @@ uv pip install --force-reinstall --no-build-isolation flash-attn
 
 This avoids most ABI breakages caused by building flash-attn against a different torch/cuda runtime.
 
+For this validated runtime (`python=3.11`, `torch=2.4.1+cu124`, `cxx11abi=False`), you can install a matching
+official prebuilt wheel directly:
+
+```bash
+uv pip install --force-reinstall --no-deps \
+  "https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3%2Bcu12torch2.4cxx11abiFALSE-cp311-cp311-linux_x86_64.whl"
+```
+
 ## 4) Run SimPO Training
 
 ```bash
