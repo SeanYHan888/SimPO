@@ -34,6 +34,28 @@ uv sync --extra deepspeed
 uv sync --extra flash-attn
 ```
 
+### Flash-Attn If Build Is Slow
+
+Fastest safe path (skip flash-attn entirely):
+
+```bash
+uv sync --extra wandb --extra quant --extra deepspeed
+```
+
+Then run training with:
+
+```bash
+--attn_implementation=sdpa --torch_dtype=bfloat16
+```
+
+If you still want flash-attn, install it only after your final torch version is already installed:
+
+```bash
+uv pip install --force-reinstall --no-build-isolation flash-attn
+```
+
+This avoids most ABI breakages caused by building flash-attn against a different torch/cuda runtime.
+
 ## 4) Run SimPO Training
 
 ```bash
@@ -90,7 +112,17 @@ uv run accelerate launch --num_processes 1 \
 
 Important: keep LoRA/model-shape args identical between initial run and resume.
 
-## 7) Re-lock Dependencies (when changing versions)
+## 7) Diagnose Flash-Attn ABI Mismatch
+
+If you see an error like `undefined symbol ... c10_cuda_check_implementation ...`, run:
+
+```bash
+uv run python scripts/diagnose_flash_attn.py
+```
+
+That script prints torch/cuda/flash-attn import status and explicitly flags ABI mismatch.
+
+## 8) Re-lock Dependencies (when changing versions)
 
 ```bash
 uv lock

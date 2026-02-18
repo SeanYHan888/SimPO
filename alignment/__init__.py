@@ -8,6 +8,7 @@ from .model_utils import (
     get_kbit_device_map,
     get_peft_config,
     get_quantization_config,
+    resolve_attn_implementation,
     get_tokenizer,
     is_adapter_model,
 )
@@ -26,6 +27,7 @@ __all__ = [
     "get_kbit_device_map",
     "get_peft_config",
     "get_quantization_config",
+    "resolve_attn_implementation",
     "get_tokenizer",
     "is_adapter_model",
 ]

@@ -12,9 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
 import os
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 import torch
 from transformers import AutoTokenizer, BitsAndBytesConfig, PreTrainedTokenizer
@@ -35,6 +36,8 @@ from peft import LoraConfig, PeftConfig
 
 from .configs import DataArguments, DPOConfig, ModelArguments, SFTConfig
 from .data import DEFAULT_CHAT_TEMPLATE
+
+logger = logging.getLogger(__name__)
 
 
 def get_current_device() -> int:
@@ -68,6 +71,38 @@ def get_quantization_config(model_args: ModelArguments) -> BitsAndBytesConfig | 
         quantization_config = None
 
     return quantization_config
+
+
+def resolve_attn_implementation(attn_implementation: Optional[str]) -> Optional[str]:
+    """Fallback to SDPA when flash-attn is unavailable or ABI-incompatible."""
+    if attn_implementation != "flash_attention_2":
+        return attn_implementation
+
+    if not torch.cuda.is_available():
+        logger.warning(
+            "Requested attn_implementation=flash_attention_2 but CUDA is unavailable. Falling back to sdpa."
+        )
+        return "sdpa"
+
+    try:
+        import flash_attn  # noqa: F401
+        import flash_attn_2_cuda  # noqa: F401
+    except Exception as exc:
+        reason = f"{type(exc).__name__}: {exc}"
+        hint = ""
+        if "undefined symbol" in str(exc):
+            hint = (
+                " This usually means flash-attn was compiled against a different PyTorch/CUDA ABI than the "
+                f"runtime (torch={torch.__version__}, torch.cuda={torch.version.cuda})."
+            )
+        logger.warning(
+            "flash-attn is not importable (%s). Falling back to sdpa.%s",
+            reason,
+            hint,
+        )
+        return "sdpa"
+
+    return attn_implementation
 
 
 def get_tokenizer(

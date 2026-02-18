@@ -38,6 +38,7 @@ from alignment import (
     get_kbit_device_map,
     get_peft_config,
     get_quantization_config,
+    resolve_attn_implementation,
     get_tokenizer,
 )
 from alignment.data import is_openai_format, maybe_insert_system_message
@@ -249,6 +250,13 @@ def main():
         else getattr(torch, model_args.torch_dtype)
     )
     quantization_config = get_quantization_config(model_args)
+    resolved_attn_implementation = resolve_attn_implementation(model_args.attn_implementation)
+    if resolved_attn_implementation != model_args.attn_implementation:
+        logger.warning(
+            "Using attn_implementation=%s instead of requested %s.",
+            resolved_attn_implementation,
+            model_args.attn_implementation,
+        )
 
     model_kwargs = dict(
         revision=model_args.model_revision,
@@ -257,7 +265,7 @@ def main():
         use_cache=False if training_args.gradient_checkpointing else True,
         device_map=get_kbit_device_map() if quantization_config is not None else None,
         quantization_config=quantization_config,
-        attn_implementation=model_args.attn_implementation,
+        attn_implementation=resolved_attn_implementation,
     )
 
     model = model_args.model_name_or_path
