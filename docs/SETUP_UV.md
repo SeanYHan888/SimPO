@@ -51,6 +51,9 @@ Then run training with:
 If you still want flash-attn, install it only after your final torch version is already installed:
 
 ```bash
+uv pip install --only-binary=:all: flash-attn
+# If no matching wheel exists for your torch/cuda/python combo, it fails fast.
+
 uv pip install --force-reinstall --no-build-isolation flash-attn
 ```
 
