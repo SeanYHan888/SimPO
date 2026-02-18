@@ -190,7 +190,7 @@ class ModelArguments:
         default=None,
         metadata={
             "help": (
-                "Which attention implementation to use; you can use --attn_implementation=flash_attention_2, in which case you must install this manually by running `pip install flash-attn --no-build-isolation`"
+                "Which attention implementation to use (e.g., sdpa or flash_attention_2)."
             )
         },
     )

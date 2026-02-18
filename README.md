@@ -173,11 +173,8 @@ cd ./alignment-handbook/
 python -m pip install .
 ```
 
-You will also need Flash Attention 2 installed, which can be done by running:
-
-```shell
-python -m pip install flash-attn --no-build-isolation
-```
+By default, this repo supports PyTorch SDPA attention (`attn_implementation: sdpa`) and does not require Flash Attention.
+If you choose to use Flash Attention 2, install it separately with a version that matches your PyTorch/CUDA runtime.
 
 ## Training Scripts
 
