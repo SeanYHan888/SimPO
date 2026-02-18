@@ -175,6 +175,11 @@ python -m pip install .
 
 By default, this repo supports PyTorch SDPA attention (`attn_implementation: sdpa`) and does not require Flash Attention.
 If you choose to use Flash Attention 2, install it separately with a version that matches your PyTorch/CUDA runtime.
+For a prebuilt wheel flow that auto-resolves the right release asset for your runtime, run:
+
+```shell
+uv run python scripts/install_prebuilt_flash_attn.py
+```
 
 ## Training Scripts
 

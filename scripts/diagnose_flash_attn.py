@@ -65,7 +65,7 @@ def main() -> int:
                 f"PyTorch/CUDA runtime than the current one (torch={torch.__version__}, cuda={torch.version.cuda})."
             )
             print("Fix: reinstall flash-attn in this exact env after torch is finalized.")
-            print("Command: pip install --force-reinstall --no-build-isolation flash-attn")
+            print("Command: uv run python scripts/install_prebuilt_flash_attn.py")
         return 3
 
     print("flash_attn_2_cuda import succeeded.")
